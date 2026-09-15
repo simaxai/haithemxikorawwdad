@@ -30,9 +30,9 @@
   /* strip angle brackets from any text field — defense in depth */
   document.addEventListener("input",e=>{const t=e.target;if(t&&t.matches&&t.matches(".input,.textarea")&&/[<>]/.test(t.value)){t.value=t.value.replace(/[<>]/g,"")}});
 
-  /* anti-tamper: detect devtools → trap, then shut the whole site down */
+  /* anti-tamper: devtools detected → eject the same second */
   (function(){
-    let hits=0, warm=0, dead=false;
+    let hits=0, dead=false;
     const probe=new Image();
     Object.defineProperty(probe,"id",{get(){hits++}});
     function nuke(){
@@ -40,18 +40,20 @@
       try{window.stop()}catch(e){}
       try{document.documentElement.innerHTML=""}catch(e){}
       try{window.close()}catch(e){}
-      setTimeout(()=>{try{location.replace("about:blank")}catch(e){}},150);
+      setTimeout(()=>{try{location.replace("about:blank")}catch(e){}},100);
     }
+    /* primary: console formats the probe → getter fires the instant devtools reads it */
     setInterval(()=>{
+      hits=0;
       try{console.log("%c ",probe)}catch(e){}
-      setTimeout(()=>{
-        if(hits>0){
-          if(!dead)(function loop(){debugger;requestAnimationFrame(loop)})();
-          if(++warm>=2)nuke();
-        }
-        hits=0;
-      },300);
-    },2000);
+      setTimeout(()=>{if(hits>0&&!dead)nuke()},120);
+    },400);
+    /* secondary: F12/Elements without console — window size delta arms the trap */
+    let armed=0;
+    setInterval(()=>{
+      const gap=window.outerHeight-window.innerHeight;
+      if(gap>170&&window.innerWidth>700){if(++armed>=2&&!dead)nuke()}else armed=0;
+    },500);
   })();
 
   document.addEventListener("keydown",function(e){
