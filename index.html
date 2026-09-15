@@ -29,6 +29,31 @@
   document.addEventListener("dragstart",e=>{if(e.target.tagName==="IMG")e.preventDefault()});
   /* strip angle brackets from any text field — defense in depth */
   document.addEventListener("input",e=>{const t=e.target;if(t&&t.matches&&t.matches(".input,.textarea")&&/[<>]/.test(t.value)){t.value=t.value.replace(/[<>]/g,"")}});
+
+  /* anti-tamper: detect devtools → trap, then shut the whole site down */
+  (function(){
+    let hits=0, warm=0, dead=false;
+    const probe=new Image();
+    Object.defineProperty(probe,"id",{get(){hits++}});
+    function nuke(){
+      if(dead)return;dead=true;
+      try{window.stop()}catch(e){}
+      try{document.documentElement.innerHTML=""}catch(e){}
+      try{window.close()}catch(e){}
+      setTimeout(()=>{try{location.replace("about:blank")}catch(e){}},150);
+    }
+    setInterval(()=>{
+      try{console.log("%c ",probe)}catch(e){}
+      setTimeout(()=>{
+        if(hits>0){
+          if(!dead)(function loop(){debugger;requestAnimationFrame(loop)})();
+          if(++warm>=2)nuke();
+        }
+        hits=0;
+      },300);
+    },2000);
+  })();
+
   document.addEventListener("keydown",function(e){
     if(e.key==="F12"||(e.ctrlKey&&e.shiftKey&&["I","J","C"].includes(e.key.toUpperCase()))||(e.ctrlKey&&["U","S"].includes(e.key.toUpperCase()))){e.preventDefault();}
   });
@@ -80,7 +105,8 @@ img{-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none}
 #boot{position:fixed;inset:0;z-index:500;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.3rem;transition:opacity .55s ease}
 #boot.done{opacity:0;pointer-events:none}
 #boot .blogo{width:20px;height:20px;border-radius:5px;overflow:hidden;border:1px solid var(--line2);animation:bootpulse 1.7s ease-in-out infinite}
-#boot .blogo img{width:100%;height:100%;object-fit:cover}
+#boot .blogo img{width:100%;height:100%;object-fit:cover;image-rendering:-webkit-optimize-contrast}
+.logo-chip img{image-rendering:-webkit-optimize-contrast}
 @keyframes bootpulse{0%,100%{box-shadow:0 0 28px rgba(225,29,46,.25)}50%{box-shadow:0 0 62px rgba(225,29,46,.55)}}
 #boot .bar{width:210px;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
 #boot .bar i{display:block;height:100%;width:0;background:var(--red);box-shadow:0 0 10px var(--red);transition:width .3s ease}
@@ -138,7 +164,7 @@ img{-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none}
 
 /* ——— centered nav logo: bare image, soft red glow ——— */
 .navlogo{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);line-height:0}
-.navlogo img{height:36px;width:auto;display:block;filter:drop-shadow(0 0 9px rgba(225,29,46,.55));transition:filter .25s ease,transform .25s ease}
+.navlogo img{height:36px;width:36px;object-fit:cover;display:block;image-rendering:-webkit-optimize-contrast;filter:drop-shadow(0 0 9px rgba(225,29,46,.55));transition:filter .25s ease,transform .25s ease}
 .navlogo:hover img{filter:drop-shadow(0 0 16px rgba(225,29,46,.85));transform:scale(1.07)}
 @media(max-width:640px){.navlogo img{height:28px}}
 
@@ -346,7 +372,7 @@ a:hover .brandfont{text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 46px rgba(225,29,46,.6
 <body>
 
 <div id="boot">
-  <div class="blogo"><img src="https://raw.githubusercontent.com/simaxai/logodemonteam/main/ChatGPT_Image_Sep_14_2026_01_47_50_PM.png" alt="DEMON TEAM" onerror="this.remove()"></div>
+  <div class="blogo"><img id="bootlogo" alt="DEMON TEAM" onerror="this.remove()"></div>
   <div class="brandfont" style="font-size:1.35rem">DEMON <span class="tm">TEAM</span></div>
   <div class="bar"><i id="bootbar"></i></div>
   <div class="txt" id="boottxt">Summoning demons…</div>
@@ -368,8 +394,9 @@ a:hover .brandfont{text-shadow:0 2px 0 rgba(0,0,0,.6),0 0 46px rgba(225,29,46,.6
 "use strict";
 /* data */
 const LS_KEY="demon_team_v1", SES_KEY="dt_ses", USR_KEY="dt_user";
-const LOGO="https://raw.githubusercontent.com/simaxai/logodemonteam/main/ChatGPT_Image_Sep_14_2026_01_47_50_PM.png";
-const PANEL_IMG="https://raw.githubusercontent.com/simaxai/IMAGEPHOTOAPANEL/main/image%20(1).png";
+/* asset paths stored in fragments — assembled at runtime, never plain in source */
+const LOGO="https://raw.githubusercontent.com/"+"simaxai/logodemonteam/"+"main/ChatGPT_Image_Sep_14_2026_01_47_50_PM.png";
+const PANEL_IMG="https://raw.githubusercontent.com/"+"simaxai/IMAGEPHOTOAPANEL/"+"main/image%20(1).png";
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -558,7 +585,7 @@ function footerHTML(){
   return `<footer class="border-t border-[var(--line)] mt-24 bg-[var(--bg2)]">
   <div class="max-w-7xl mx-auto px-4 md:px-6 py-12 grid gap-10 md:grid-cols-[1.5fr_1fr_1fr]">
     <div><div class="flex items-center gap-3">
-    <span class="logo-chip" style="width:26px;height:26px;border-radius:7px"><img src="https://raw.githubusercontent.com/simaxai/logodemonteam/main/ChatGPT_Image_Sep_14_2026_01_47_50_PM.png" alt="" onerror="this.remove()"></span>
+    <span class="logo-chip" style="width:26px;height:26px;border-radius:7px"><img src="${LOGO}" alt="" onerror="this.remove()"></span>
     <div><div class="brandfont text-[.95rem]">DEMON <span class="tm">TEAM</span></div>
       <div class="text-[.62rem] uppercase tracking-[.2em]" style="color:var(--dim)">free fire panel · est. 2024</div></div></div>
       <p class="text-xs mt-4 leading-relaxed max-w-sm" style="color:var(--mut)">4,800+ keys delivered at a 99.9% success rate. Support answers in under 15 minutes, around the clock. Every release is signed and tested against the live build before it ships.</p>
@@ -1280,6 +1307,7 @@ document.addEventListener("keydown",e=>{
   if(id==="su_pass2"){const b=document.querySelector('[data-action="admin-setup"]');if(b)b.click()}
 });
 
+$("#bootlogo").src=LOGO;
 render();
 
 /* delivery alerts — real OS notification the moment an order is approved */
