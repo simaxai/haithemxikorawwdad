@@ -30,29 +30,32 @@
   /* strip angle brackets from any text field — defense in depth */
   document.addEventListener("input",e=>{const t=e.target;if(t&&t.matches&&t.matches(".input,.textarea")&&/[<>]/.test(t.value)){t.value=t.value.replace(/[<>]/g,"")}});
 
-  /* anti-tamper: devtools detected → eject the same second */
+  /* anti-tamper: ANY devtools surface (console / sources / elements / docked right) → eject instantly */
   (function(){
-    let hits=0, dead=false;
-    const probe=new Image();
-    Object.defineProperty(probe,"id",{get(){hits++}});
+    let dead=false;
     function nuke(){
       if(dead)return;dead=true;
       try{window.stop()}catch(e){}
       try{document.documentElement.innerHTML=""}catch(e){}
       try{window.close()}catch(e){}
-      setTimeout(()=>{try{location.replace("about:blank")}catch(e){}},100);
+      setTimeout(()=>{try{location.replace("about:blank")}catch(e){}},80);
     }
-    /* primary: console formats the probe → getter fires the instant devtools reads it */
-    setInterval(()=>{
-      hits=0;
-      try{console.log("%c ",probe)}catch(e){}
-      setTimeout(()=>{if(hits>0&&!dead)nuke()},120);
-    },400);
-    /* secondary: F12/Elements without console — window size delta arms the trap */
+    /* vector 1 — debugger timing: pauses on EVERY devtools panel, any dock position */
+    (function watch(){
+      setTimeout(function(){
+        const t=Date.now();
+        debugger;
+        if(Date.now()-t>120)nuke();else watch();
+      },900);
+    })();
+    /* vector 2 — console getter probe: fires the instant the console reads an object */
+    const probe=new Image();
+    Object.defineProperty(probe,"id",{get(){nuke()}});
+    setInterval(()=>{try{console.log("%c ",probe)}catch(e){}},500);
+    /* vector 3 — bottom-docked devtools size delta */
     let armed=0;
     setInterval(()=>{
-      const gap=window.outerHeight-window.innerHeight;
-      if(gap>170&&window.innerWidth>700){if(++armed>=2&&!dead)nuke()}else armed=0;
+      if(window.outerHeight-window.innerHeight>170&&window.innerWidth>700){if(++armed>=2)nuke()}else armed=0;
     },500);
   })();
 
